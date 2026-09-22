@@ -28,8 +28,8 @@ def send_test_webhook():
     webhook_url = config.get_str(WEBHOOK_SETTING)
     
     # Enforce safe default strings so Discord never receives an empty value
-    carrier_name = get_clean_config(NAME_SETTING, "SWS Powerslave")
-    carrier_serial = get_clean_config(SERIAL_SETTING, "X1Y-2Z3")
+    carrier_name = get_clean_config(NAME_SETTING, "SWS Carrier")
+    carrier_serial = get_clean_config(SERIAL_SETTING, "8008135")
     image_url = config.get_str(IMAGE_SETTING)
     
     if not webhook_url or not webhook_url.strip():
@@ -44,6 +44,7 @@ def send_test_webhook():
                 {"name": "Status", "value": "Online & Listening", "inline": True},
                 {"name": "Engine Bridge", "value": "EDMC Client UI v5", "inline": True}
             ],
+            "key": "-u9W!jM6HD)c%vAEJ/8v_t",
             "footer": {"text": f"SWS Verification Link — {carrier_serial}"}
         }]
     }
@@ -153,8 +154,8 @@ def journal_entry(cmdr, is_beta, system, station, entry, state):
         return
 
     # Check EDMC telemetry state; if absent, leverage saved parameters from configuration
-    carrier_name = get_clean_config(NAME_SETTING, "SWS Powerslave")
-    carrier_callsign = get_clean_config(SERIAL_SETTING, "X1Y-2Z3")
+    carrier_name = get_clean_config(NAME_SETTING, "SWS Carrier")
+    carrier_callsign = get_clean_config(SERIAL_SETTING, "8008135")
 
     event_type = entry.get('event')
     payload = None
@@ -171,6 +172,7 @@ def journal_entry(cmdr, is_beta, system, station, entry, state):
                     {"name": "Destination System", "value": str(target_system), "inline": True},
                     {"name": "Time to Departure", "value": "15 Minutes (Lockdown in 10)", "inline": False}
                 ],
+                "key": "-u9W!jM6HD)c%vAEJ/8v_t",
                 "footer": {"text": f"SWS Automated Log Protocol — {carrier_callsign}"}
             }]
         }
@@ -184,6 +186,7 @@ def journal_entry(cmdr, is_beta, system, station, entry, state):
                 "fields": [
                     {"name": "Status Update", "value": "The carrier will remain at its current coordinates.", "inline": False}
                 ],
+                "key": "-u9W!jM6HD)c%vAEJ/8v_t",
                 "footer": {"text": f"SWS Automated Log Protocol — {carrier_callsign}"}
             }]
         }
