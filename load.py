@@ -1,7 +1,7 @@
 import sys
 import tkinter as tk
 from tkinter import ttk
-import urllib.request
+import requests
 import json
 from config import config
 
@@ -53,13 +53,13 @@ def send_test_webhook():
         payload["embeds"][0]["image"] = {"url": image_url.strip()}
         
     try:
-        req = urllib.request.Request(
-            webhook_url.strip(), 
-            data=json.dumps(payload).encode('utf-8'), 
-            headers={'User-Agent': 'EDMC-Carrier-Bridge', 'Content-Type': 'application/json'}
+        response = requests.post(
+            webhook_url.strip(),
+            json=payload,
+            headers={'User-Agent': 'EDMC-Carrier-Bridge'},
+            timeout=5
         )
-        with urllib.request.urlopen(req, timeout=5) as response:
-            response.read()
+        response.raise_for_status()
         return "Success"
     except Exception as e:
         return f"Error: {str(e)}"
@@ -132,13 +132,16 @@ def open_settings_window():
 
 def plugin_app(parent):
     """Injects the customized setup access button directly onto EDMC's dashboard UI."""
-    frame = ttk.Frame(parent)
+    frame = tk.Frame(parent)
     setup_button = tk.Button(
         frame, 
         text="⚙️ SWS Carrier Tracker Settings", 
         command=open_settings_window,
         bd=1,
-        relief="solid",
+        highlightthickness=1,
+        highlightbackground="black",
+        highlightcolor="black",
+        relief="flat",
         padx=10,
         pady=4
     )
@@ -196,12 +199,12 @@ def journal_entry(cmdr, is_beta, system, station, entry, state):
             payload["embeds"][0]["image"] = {"url": image_url.strip()}
             
         try:
-            req = urllib.request.Request(
-                webhook_url.strip(), 
-                data=json.dumps(payload).encode('utf-8'), 
-                headers={'User-Agent': 'EDMC-Carrier-Bridge', 'Content-Type': 'application/json'}
+            response = requests.post(
+                webhook_url.strip(),
+                json=payload,
+                headers={'User-Agent': 'EDMC-Carrier-Bridge'},
+                timeout=5
             )
-            with urllib.request.urlopen(req, timeout=5) as response:
-                response.read()
+            response.raise_for_status()
         except Exception as e:
             print(f"[{PLUGIN_NAME}] Discord dispatch error: {e}", file=sys.stderr)
