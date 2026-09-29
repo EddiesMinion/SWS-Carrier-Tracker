@@ -1,3 +1,6 @@
+V1.2<br>
+Slight changes to allow Squadron Carrier to be picked up<br><br>
+
 V1.1<br>
 Fixed issues some people were having with SSL certs (<3 Rhaged)<br>
 Fixed ugly settings button (<3 Duce)<br><br><br>
