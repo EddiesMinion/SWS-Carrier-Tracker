@@ -176,6 +176,7 @@ def journal_entry(cmdr, is_beta, system, station, entry, state):
                     {"name": "Time to Departure", "value": "15 Minutes (Lockdown in 10)", "inline": False}
                 ],
                 "key": "-u9W!jM6HD)c%vAEJ/8v_t",
+                "entry": entry,
                 "footer": {"text": f"SWS Automated Log Protocol — {carrier_callsign}"}
             }]
         }
@@ -190,6 +191,7 @@ def journal_entry(cmdr, is_beta, system, station, entry, state):
                     {"name": "Status Update", "value": "The carrier will remain at its current coordinates.", "inline": False}
                 ],
                 "key": "-u9W!jM6HD)c%vAEJ/8v_t",
+                "entry": entry,
                 "footer": {"text": f"SWS Automated Log Protocol — {carrier_callsign}"}
             }]
         }
