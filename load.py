@@ -3,6 +3,7 @@ import tkinter as tk
 from tkinter import ttk
 import requests
 import json
+from datetime import datetime, timezone
 from config import config
 
 # Storage registry keys
@@ -165,6 +166,26 @@ def journal_entry(cmdr, is_beta, system, station, entry, state):
 
     if event_type == 'CarrierJumpRequest':
         target_system = entry.get('SystemName', 'Unknown System')
+        
+        # Calculate time remaining until departure
+        departure_str = entry.get('DepartureTime')
+        time_display = "Unknown"
+        
+        if departure_str:
+            try:
+                # Parse timestamp from journal (handles both ISO formats: with 'Z' or offset)
+                departure_time = datetime.fromisoformat(departure_str.replace('Z', '+00:00'))
+                now_utc = datetime.now(timezone.utc)
+                remaining_seconds = int((departure_time - now_utc).total_seconds())
+                
+                if remaining_seconds > 0:
+                    minutes, seconds = divmod(remaining_seconds, 60)
+                    time_display = f"{minutes}m {seconds}s"
+                else:
+                    time_display = "Imminent"
+            except Exception:
+                time_display = departure_str
+
         payload = {
             "embeds": [{
                 "title": f"🚨 {carrier_name} ({carrier_callsign}) — Jump Scheduled!",
@@ -173,7 +194,7 @@ def journal_entry(cmdr, is_beta, system, station, entry, state):
                 "fields": [
                     {"name": "Commanding Officer", "value": str(cmdr), "inline": True},
                     {"name": "Destination System", "value": str(target_system), "inline": True},
-                    {"name": "Time to Departure", "value": "15 Minutes (Lockdown in 10)", "inline": False}
+                    {"name": "Time to Departure", "value": time_display, "inline": False}
                 ],
                 "key": "-u9W!jM6HD)c%vAEJ/8v_t",
                 "entry": entry,
