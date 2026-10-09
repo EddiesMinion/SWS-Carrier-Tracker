@@ -1,3 +1,6 @@
+V1.3<br>
+Added calculation of actual jump times<br><br>
+
 V1.2<br>
 Slight changes to allow Squadron Carrier to be picked up<br><br>
 
