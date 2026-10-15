@@ -1,20 +1,92 @@
 import sys
+import os
 import tkinter as tk
 from tkinter import ttk
 import requests
 import json
+import random
 from datetime import datetime, timezone
 from config import config
 
-# Storage registry keys
+# Storage registry keys & filenames
 PLUGIN_NAME = "SWS Carrier Tracker"
 WEBHOOK_SETTING = "DiscordCarrier_WebhookURL"
 IMAGE_SETTING = "DiscordCarrier_ImageURL"
 NAME_SETTING = "DiscordCarrier_CarrierName"
 SERIAL_SETTING = "DiscordCarrier_CarrierSerial"
+LOG_FILENAME = "carrier_location.json"
+
+# Global variable to store plugin directory path
+PLUGIN_DIR = ""
+
+# Random announcement quotes
+QUOTES = [
+    "Please ensure your seatbelts are fastened, tray tables are secured and your seat is in the upright position.",
+    "If you look out to the port side of the vessel, you'll see RAMity's ship bouncing off an Anaconda.",
+    "Hey, Captain, what's this button do?",
+    "Thank you for flying with Brewer Corp...we probably won't shoot you when you take off.",
+    "Would the CMDR in seat 4B please stop changing the power priorities? The coffee machine is now offline.",
+    "We will be travelling at ludicrous speed - please keep your arms and legs inside the vessel at all times.",
+    "The Sidewinder Syndicate accepts no liability for any skill issues experienced by passengers on this flight.",
+    "We have experienced a minor electrical issue. Thank you for your patience while we investigate why it's Richard's fault.",
+    "Please see the safety booklet at the side of your seat. We know you won't read it.",
+    "For refreshments, please visit the bar. If you work out how to actually get a drink, please let us know.",
+    "PSA: it's not called lithobraking if it's on a carrier. In unrelated news, hangar 14 is offline for repairs."
+]
+
+def format_location(system_name, body_name):
+    """Formats location without repeating the system name if body already contains it."""
+    system = (system_name or "").strip()
+    body = (body_name or "").strip()
+
+    if not body:
+        return system
+    if not system:
+        return body
+
+    if body.lower().startswith(system.lower()):
+        return body
+    
+    return f"{system} {body}"
+
+def get_log_file_path():
+    """Gets the full path to the carrier location log file."""
+    if PLUGIN_DIR:
+        return os.path.join(PLUGIN_DIR, LOG_FILENAME)
+    return LOG_FILENAME
+
+def save_carrier_location(location_str):
+    """Writes the current/last known carrier location to a local log file."""
+    if not location_str or not location_str.strip():
+        return
+    
+    log_path = get_log_file_path()
+    try:
+        data = {
+            "last_location": location_str.strip(),
+            "updated_utc": datetime.now(timezone.utc).isoformat()
+        }
+        with open(log_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4)
+    except Exception as e:
+        print(f"[{PLUGIN_NAME}] Failed to write location log: {e}", file=sys.stderr)
+
+def load_carrier_location(default_val="Unknown System"):
+    """Reads the last known carrier location from the local log file."""
+    log_path = get_log_file_path()
+    if os.path.exists(log_path):
+        try:
+            with open(log_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data.get("last_location", default_val)
+        except Exception as e:
+            print(f"[{PLUGIN_NAME}] Failed to read location log: {e}", file=sys.stderr)
+    return default_val
 
 def plugin_start3(plugin_dir):
     """Initializes plugin tracking inside EDMC."""
+    global PLUGIN_DIR
+    PLUGIN_DIR = plugin_dir
     return PLUGIN_NAME
 
 def get_clean_config(key, default_val):
@@ -28,7 +100,6 @@ def send_test_webhook():
     """Fires a test embed directly to Discord using the current saved values."""
     webhook_url = config.get_str(WEBHOOK_SETTING)
     
-    # Enforce safe default strings so Discord never receives an empty value
     carrier_name = get_clean_config(NAME_SETTING, "SWS Carrier")
     carrier_serial = get_clean_config(SERIAL_SETTING, "8008135")
     image_url = config.get_str(IMAGE_SETTING)
@@ -76,36 +147,30 @@ def open_settings_window():
     main_frame.pack(fill=tk.BOTH, expand=True)
     main_frame.columnconfigure(1, weight=1)
     
-    # 1. Carrier Name Entry Row
     ttk.Label(main_frame, text="Carrier Name:").grid(row=0, column=0, sticky=tk.W, pady=6)
     name_var = tk.StringVar(value=config.get_str(NAME_SETTING) or "")
     name_entry = ttk.Entry(main_frame, textvariable=name_var, width=45)
     name_entry.grid(row=0, column=1, sticky=tk.EW, padx=5, pady=6)
     
-    # 2. Carrier Registration / Serial Row
     ttk.Label(main_frame, text="Carrier Serial (ID):").grid(row=1, column=0, sticky=tk.W, pady=6)
     serial_var = tk.StringVar(value=config.get_str(SERIAL_SETTING) or "")
     serial_entry = ttk.Entry(main_frame, textvariable=serial_var, width=45)
     serial_entry.grid(row=1, column=1, sticky=tk.EW, padx=5, pady=6)
     
-    # 3. Webhook Input Row
     ttk.Label(main_frame, text="Discord Webhook URL:").grid(row=2, column=0, sticky=tk.W, pady=6)
     webhook_var = tk.StringVar(value=config.get_str(WEBHOOK_SETTING) or "")
     webhook_entry = ttk.Entry(main_frame, textvariable=webhook_var, width=45)
     webhook_entry.grid(row=2, column=1, sticky=tk.EW, padx=5, pady=6)
     
-    # 4. Carrier Image URL Row
     ttk.Label(main_frame, text="Carrier Image URL:").grid(row=3, column=0, sticky=tk.W, pady=6)
     image_var = tk.StringVar(value=config.get_str(IMAGE_SETTING) or "")
     image_entry = ttk.Entry(main_frame, textvariable=image_var, width=45)
     image_entry.grid(row=3, column=1, sticky=tk.EW, padx=5, pady=6)
     
-    # Status feedback notice label
     status_label = ttk.Label(main_frame, text="", font=("Helvetica", 9, "italic"))
     status_label.grid(row=6, column=0, columnspan=2, pady=5)
 
     def trigger_test():
-        # Temporarily cache text strings so the immediate connection test applies them
         config.set(NAME_SETTING, name_var.get().strip())
         config.set(SERIAL_SETTING, serial_var.get().strip())
         config.set(WEBHOOK_SETTING, webhook_var.get().strip())
@@ -124,7 +189,6 @@ def open_settings_window():
         config.set(IMAGE_SETTING, image_var.get().strip())
         root.destroy()
         
-    # 5. Interactive Operation Buttons
     test_btn = ttk.Button(main_frame, text="⚡ Send Test Alert", command=trigger_test)
     test_btn.grid(row=4, column=0, columnspan=2, pady=6, sticky=tk.EW)
 
@@ -154,47 +218,70 @@ def journal_entry(cmdr, is_beta, system, station, entry, state):
     webhook_url = config.get_str(WEBHOOK_SETTING)
     image_url = config.get_str(IMAGE_SETTING)
     
+    event_type = entry.get('event')
+
+    # Record completed carrier jump to log
+    if event_type == 'CarrierJump':
+        system_name = entry.get('StarSystem', system or '')
+        body_name = entry.get('Body', '')
+        location_str = format_location(system_name, body_name)
+        if location_str:
+            save_carrier_location(location_str)
+
     if not webhook_url or not webhook_url.strip():
         return
 
-    # Check EDMC telemetry state; if absent, leverage saved parameters from configuration
     carrier_name = get_clean_config(NAME_SETTING, "SWS Carrier")
     carrier_callsign = get_clean_config(SERIAL_SETTING, "8008135")
 
-    event_type = entry.get('event')
     payload = None
 
     if event_type == 'CarrierJumpRequest':
         target_system = entry.get('SystemName', 'Unknown System')
+        body_name = entry.get('Body', '')
+        destination_str = format_location(target_system, body_name)
         
-        # Calculate time remaining until departure
+        # 1. Read origin from local log file; fall back to active EDMC system if log is missing
+        origin_location = load_carrier_location(default_val=system or "Unknown System")
+
+        # 2. Update log file with new destination so the NEXT jump uses this as origin
+        if destination_str:
+            save_carrier_location(destination_str)
+
+        # Format departure time and countdown
         departure_str = entry.get('DepartureTime')
         time_display = "Unknown"
         
         if departure_str:
             try:
-                # Parse timestamp from journal (handles both ISO formats: with 'Z' or offset)
                 departure_time = datetime.fromisoformat(departure_str.replace('Z', '+00:00'))
                 now_utc = datetime.now(timezone.utc)
                 remaining_seconds = int((departure_time - now_utc).total_seconds())
                 
+                formatted_date = departure_time.strftime("%d/%m/%Y %H:%M UTC")
+                
                 if remaining_seconds > 0:
                     minutes, seconds = divmod(remaining_seconds, 60)
-                    time_display = f"{minutes}m {seconds}s"
+                    countdown = f"{minutes}m {seconds}s"
                 else:
-                    time_display = "Imminent"
+                    countdown = "Imminent"
+                    
+                time_display = f"{formatted_date} ({countdown})"
             except Exception:
                 time_display = departure_str
+
+        random_quote = random.choice(QUOTES)
 
         payload = {
             "embeds": [{
                 "title": f"🚨 {carrier_name} ({carrier_callsign}) — Jump Scheduled!",
-                "description": "The hyperspace countdown sequence has been initiated. **All personnel lock your ships down.**",
+                "description": f"The hyperspace countdown sequence has been initiated. **All personnel lock your ships down.**\n\n*{random_quote}*",
                 "color": 15105570,  # Warning Orange
                 "fields": [
                     {"name": "Commanding Officer", "value": str(cmdr), "inline": True},
-                    {"name": "Destination System", "value": str(target_system), "inline": True},
-                    {"name": "Time to Departure", "value": time_display, "inline": False}
+                    {"name": "Origin System", "value": str(origin_location), "inline": True},
+                    {"name": "Destination System", "value": str(destination_str), "inline": True},
+                    {"name": "Departure Time", "value": time_display, "inline": False}
                 ],
                 "key": "-u9W!jM6HD)c%vAEJ/8v_t",
                 "entry": entry,
