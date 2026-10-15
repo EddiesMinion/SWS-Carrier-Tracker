@@ -1,3 +1,9 @@
+V1.4<br>
+Added origin system and cache within EDMC to remember where you last jumped to - no syncing with servers required!<br>
+(it will get it wrong for the first jump)<br>
+Also added PSAs from the flight deck.<br>
+Departure now gives time and date (UTC) as well as countdown.<br><br>
+
 V1.3<br>
 Added calculation of actual jump times<br><br>
 
